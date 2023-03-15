@@ -1,0 +1,10 @@
+logging:
+  level:
+    com.github.j0rdanit0: trace
+
+bot:
+  name: 'ChatGPT Bot'
+
+open-ai:
+  chat-model: 'gpt-3.5-turbo'
+  timeout: 30s
