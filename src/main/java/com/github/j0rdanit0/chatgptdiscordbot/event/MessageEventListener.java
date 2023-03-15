@@ -6,7 +6,9 @@ import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.message.MessageCreateEvent;
 import discord4j.core.object.entity.User;
 import discord4j.core.object.entity.channel.TextChannel;
+import discord4j.core.spec.EmbedCreateSpec;
 import discord4j.core.spec.MessageCreateSpec;
+import discord4j.rest.util.Color;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -58,10 +60,19 @@ public class MessageEventListener extends EventListener<MessageCreateEvent>
 
                   return conversationService
                     .sendPrompt( channel.getId(), userId, prompt, botPersonality )
+                    .onErrorResume( error -> {
+                        log.error( "Unable to send prompt", error );
+                        return Mono.just( "Error occurred: " + error.getMessage() );
+                    } )
                     .map( reply -> MessageCreateSpec
                       .builder()
                       .messageReference( event.getMessage().getId() )
-                      .content( reply )
+                      .addEmbed( EmbedCreateSpec
+                        .builder()
+                        .color( Color.of( 125, 108, 178 ) )
+                        .description( reply )
+                        .build()
+                      )
                       .build()
                     )
                     .flatMap( channel::createMessage )
