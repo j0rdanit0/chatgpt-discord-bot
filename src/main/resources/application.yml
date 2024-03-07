@@ -3,8 +3,15 @@ logging:
     com.github.j0rdanit0: trace
 
 bot:
+  token: ${CHATGPT_BOT_TOKEN}
   name: 'ChatGPT Bot'
 
 open-ai:
+  token: ${OPENAI_API_KEY}
   chat-model: 'gpt-3.5-turbo'
   timeout: 30s
+
+spring:
+  threads:
+    virtual:
+      enabled: true

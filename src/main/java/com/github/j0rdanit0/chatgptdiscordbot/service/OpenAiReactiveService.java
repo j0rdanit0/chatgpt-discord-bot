@@ -24,6 +24,6 @@ public class OpenAiReactiveService
         return Mono
           .fromSupplier( () -> openAiService.createChatCompletion( request ) )
           .subscribeOn( scheduler )
-          .doOnNext( response -> log.debug( "Received response from OpenAI: %s".formatted( response ) ) );
+          .doOnNext( response -> log.debug( "Received response from OpenAI: {}", response ) );
     }
 }

@@ -5,16 +5,16 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.0.3</version>
+		<version>3.2.3</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.github.j0rdanit0</groupId>
 	<artifactId>chatgpt-discord-bot</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.2</version>
 	<name>chatgpt-discord-bot</name>
 	<description>Demonstration of a Discord bot that integrates with the ChatGPT API</description>
 	<properties>
-		<java.version>17</java.version>
+		<java.version>21</java.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -40,12 +40,12 @@
 		<dependency>
 			<groupId>com.discord4j</groupId>
 			<artifactId>discord4j-core</artifactId>
-			<version>3.2.3</version>
+			<version>3.2.6</version>
 		</dependency>
 		<dependency>
 			<groupId>com.theokanning.openai-gpt3-java</groupId>
 			<artifactId>service</artifactId>
-			<version>0.11.0</version>
+			<version>0.18.2</version>
 		</dependency>
 
 		<dependency>

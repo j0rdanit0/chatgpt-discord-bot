@@ -26,12 +26,6 @@ public class MessageEventListener extends EventListener<MessageCreateEvent>
     }
 
     @Override
-    public Class<MessageCreateEvent> getEventType()
-    {
-        return MessageCreateEvent.class;
-    }
-
-    @Override
     public Mono<Void> execute( MessageCreateEvent event )
     {
         Mono<Void> result = Mono.empty();
@@ -64,22 +58,26 @@ public class MessageEventListener extends EventListener<MessageCreateEvent>
                         log.error( "Unable to send prompt", error );
                         return Mono.just( "Error occurred: " + error.getMessage() );
                     } )
-                    .map( reply -> MessageCreateSpec
-                      .builder()
-                      .messageReference( event.getMessage().getId() )
-                      .addEmbed( EmbedCreateSpec
-                        .builder()
-                        .color( Color.of( 125, 108, 178 ) )
-                        .description( reply )
-                        .build()
-                      )
-                      .build()
-                    )
+                    .map( reply -> buildReplyMessage( event.getMessage().getId(), reply ) )
                     .flatMap( channel::createMessage )
                     .then();
               } );
         }
 
         return result;
+    }
+
+    private MessageCreateSpec buildReplyMessage( Snowflake messageId, String reply )
+    {
+        return MessageCreateSpec
+          .builder()
+          .messageReference( messageId )
+          .addEmbed( EmbedCreateSpec
+            .builder()
+            .color( Color.of( 125, 108, 178 ) )
+            .description( reply )
+            .build()
+          )
+          .build();
     }
 }
