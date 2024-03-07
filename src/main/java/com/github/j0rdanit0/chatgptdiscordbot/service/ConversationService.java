@@ -46,7 +46,7 @@ public class ConversationService
         List<ChatMessage> conversationHistory = conversationRepository.getConversationHistory( channelId, userId );
         if ( conversationHistory.isEmpty() )
         {
-            ChatMessage initialMessage = new ChatMessage( ChatMessageRole.SYSTEM.value(), "Your personality is \"%s\". I am a Discord bot that acts as a proxy between my users and you. Users interact with me via Discord, I give you their prompts, and I give them your responses. Your Discord ID is \"%s\", so they will tag you like this: <@%s>. They might also call you by your bot name, which is \"%s\"".formatted( botPersonality, gatewayDiscordClient.getSelfId().asString(), gatewayDiscordClient.getSelfId().asString(), botName ) );
+            ChatMessage initialMessage = new ChatMessage( ChatMessageRole.SYSTEM.value(), "Your personality is \"%s\". I am a Discord bot that acts as a proxy between my users and you. Users interact with me via Discord, I give you their prompts, and I give them your responses. Your Discord ID is \"%s\", so they will tag you like this: <@%s>. They might also call you by your bot name, which is \"%s\". Answer at a high school senior level.".formatted( botPersonality, gatewayDiscordClient.getSelfId().asString(), gatewayDiscordClient.getSelfId().asString(), botName ) );
             conversationRepository.appendConversationHistory( channelId, userId, initialMessage );
         }
 
