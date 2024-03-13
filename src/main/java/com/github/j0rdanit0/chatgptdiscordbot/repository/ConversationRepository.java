@@ -12,27 +12,20 @@ import java.util.concurrent.ConcurrentHashMap;
 @Repository
 public class ConversationRepository
 {
-    private static final Map<String, List<ChatMessage>> CONVERSATION_HISTORY = new ConcurrentHashMap<>();
+    private static final Map<Snowflake, List<ChatMessage>> CONVERSATION_HISTORY = new ConcurrentHashMap<>();
 
-    public List<ChatMessage> getConversationHistory( Snowflake channelId, Snowflake userId )
+    public List<ChatMessage> getConversationHistory( Snowflake threadId )
     {
-        String key = getKey( channelId, userId );
-        return CONVERSATION_HISTORY.getOrDefault( key, new ArrayList<>(1) );
+        return CONVERSATION_HISTORY.getOrDefault( threadId, new ArrayList<>(1) );
     }
 
-    public List<ChatMessage> appendConversationHistory( Snowflake channelId, Snowflake userId, ChatMessage chatMessage )
+    public List<ChatMessage> appendConversationHistory( Snowflake threadId, ChatMessage chatMessage )
     {
-        List<ChatMessage> conversation = getConversationHistory( channelId, userId );
+        List<ChatMessage> conversation = getConversationHistory( threadId );
         conversation.add( chatMessage );
 
-        String key = getKey( channelId, userId );
-        CONVERSATION_HISTORY.put( key, conversation );
+        CONVERSATION_HISTORY.put( threadId, conversation );
 
         return conversation;
-    }
-
-    private String getKey( Snowflake channelId, Snowflake userId )
-    {
-        return channelId.asString() + userId.asString();
     }
 }

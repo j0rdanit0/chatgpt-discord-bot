@@ -4,12 +4,16 @@ import com.github.j0rdanit0.chatgptdiscordbot.service.ConversationService;
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.message.MessageCreateEvent;
+import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.User;
+import discord4j.core.object.entity.channel.MessageChannel;
 import discord4j.core.object.entity.channel.TextChannel;
-import discord4j.core.spec.EmbedCreateSpec;
-import discord4j.core.spec.MessageCreateSpec;
-import discord4j.rest.util.Color;
+import discord4j.core.object.entity.channel.ThreadChannel;
+import discord4j.core.object.reaction.ReactionEmoji;
+import discord4j.core.spec.StartThreadSpec;
+import discord4j.core.spec.ThreadChannelEditSpec;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -17,12 +21,16 @@ import reactor.core.publisher.Mono;
 @Service
 public class MessageEventListener extends EventListener<MessageCreateEvent>
 {
-    private final ConversationService conversationService;
+    public static final ReactionEmoji SPEECH_BALLOON = ReactionEmoji.unicode( "\uD83D\uDCAC" );
 
-    public MessageEventListener( GatewayDiscordClient discordClient, ConversationService conversationService )
+    private final ConversationService conversationService;
+    private final TaskExecutor taskExecutor;
+
+    public MessageEventListener( GatewayDiscordClient discordClient, ConversationService conversationService, TaskExecutor taskExecutor )
     {
         super( discordClient );
         this.conversationService = conversationService;
+        this.taskExecutor = taskExecutor;
     }
 
     @Override
@@ -35,49 +43,121 @@ public class MessageEventListener extends EventListener<MessageCreateEvent>
           .map( User::isBot )
           .orElse( false );
 
-        boolean mentionsBot = event
-          .getMessage()
-          .getUserMentionIds()
-          .contains( event.getClient().getSelfId() );
-
-        if ( !isBot && mentionsBot )
+        if ( !isBot )
         {
-            log.info( "Got a new prompt" );
-            result = event
+            boolean mentionsTheBot = event
               .getMessage()
-              .getChannel()
-              .cast( TextChannel.class )
-              .flatMap( channel -> {
-                  Snowflake userId = event.getMessage().getAuthor().orElseThrow().getId();
-                  String prompt = event.getMessage().getContent();
-                  String botPersonality = String.join( " ", channel.getName().split( "-" ) );
+              .getUserMentionIds()
+              .contains( event.getClient().getSelfId() );
 
-                  return conversationService
-                    .sendPrompt( channel.getId(), userId, prompt, botPersonality )
-                    .onErrorResume( error -> {
-                        log.error( "Unable to send prompt", error );
-                        return Mono.just( "Error occurred: " + error.getMessage() );
-                    } )
-                    .map( reply -> buildReplyMessage( event.getMessage().getId(), reply ) )
-                    .flatMap( channel::createMessage )
-                    .then();
-              } );
+            if ( mentionsTheBot )
+            {
+                taskExecutor.execute( () -> {
+                    MessageChannel messageChannel = event.getMessage().getChannel().block();
+
+                    if ( messageChannel instanceof TextChannel textChannel )
+                    {
+                        startConversation( event.getMessage(), textChannel );
+                    }
+                    else if ( messageChannel instanceof ThreadChannel threadChannel )
+                    {
+                        continueConversation( event.getMessage(), threadChannel );
+                    }
+                } );
+            }
+            else
+            {
+                taskExecutor.execute( () -> {
+                    MessageChannel messageChannel = event.getMessage().getChannel().block();
+
+                    if ( messageChannel instanceof ThreadChannel threadChannel )
+                    {
+                        continueConversation( event.getMessage(), threadChannel );
+                    }
+                } );
+            }
         }
 
         return result;
     }
 
-    private MessageCreateSpec buildReplyMessage( Snowflake messageId, String reply )
+    private void startConversation( Message promptMessage, TextChannel textChannel )
     {
-        return MessageCreateSpec
-          .builder()
-          .messageReference( messageId )
-          .addEmbed( EmbedCreateSpec
+        log.info( "Got a new prompt" );
+        User prompter = promptMessage.getAuthor().orElseThrow();
+        Snowflake userId = prompter.getId();
+        String prompt = promptMessage.getContent();
+        String botPersonality = String.join( " ", textChannel.getName().split( "-" ) );
+
+        ThreadChannel threadChannel = promptMessage.startThread(
+          StartThreadSpec
             .builder()
-            .color( Color.of( 125, 108, 178 ) )
-            .description( reply )
+            .name( "New chat" )
+            .reason( prompt )
+            .autoArchiveDuration( ThreadChannel.AutoArchiveDuration.DURATION4 )
             .build()
-          )
-          .build();
+        ).block();
+
+        threadChannel.addMember( prompter ).subscribe();
+
+        doWithTyping( threadChannel, () -> {
+            String reply;
+            try
+            {
+                reply = conversationService.startConversation( threadChannel.getId(), userId, prompt, botPersonality );
+
+                String newThreadTitle = conversationService.getNewThreadTitle( threadChannel.getId() );
+                threadChannel.edit(
+                  ThreadChannelEditSpec
+                    .builder()
+                    .name( newThreadTitle )
+                    .build()
+                ).subscribe( null, exception -> log.error( "Unable to get new thread title", exception ) );
+            }
+            catch ( Exception exception )
+            {
+                log.error( "Unable to send prompt", exception );
+                reply = "Error occurred: " + exception.getMessage();
+            }
+
+            threadChannel.createMessage( reply ).subscribe();
+        } );
+    }
+
+    private void continueConversation( Message promptMessage, ThreadChannel threadChannel )
+    {
+        log.info( "Continuing an existing conversation" );
+
+        doWithTyping( threadChannel, () -> {
+            Snowflake userId = promptMessage.getAuthor().orElseThrow().getId();
+            String prompt = promptMessage.getContent();
+
+            String reply;
+            try
+            {
+                reply = conversationService.continueConversation( threadChannel.getId(), userId, prompt );
+            }
+            catch ( Exception exception )
+            {
+                log.error( "Unable to continue conversation", exception );
+                reply = "Error occurred: " + exception.getMessage();
+            }
+
+            threadChannel.createMessage( reply ).subscribe();
+        } );
+    }
+
+    private void doWithTyping( MessageChannel messageChannel, Runnable runnable )
+    {
+        Message typingMessage = messageChannel.createMessage( SPEECH_BALLOON.asFormat() ).block();
+
+        try
+        {
+            runnable.run();
+        }
+        finally
+        {
+            typingMessage.delete().subscribe();
+        }
     }
 }

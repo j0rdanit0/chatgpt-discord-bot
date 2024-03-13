@@ -4,6 +4,8 @@ import discord4j.core.DiscordClient;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.object.presence.ClientActivity;
 import discord4j.core.object.presence.ClientPresence;
+import discord4j.gateway.intent.Intent;
+import discord4j.gateway.intent.IntentSet;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +25,7 @@ public class BotConfiguration
         return DiscordClient
           .create( botToken )
           .gateway()
+          .setEnabledIntents( IntentSet.of( Intent.MESSAGE_CONTENT, Intent.GUILD_MESSAGES ) )
           .setInitialPresence( shardInfo -> ClientPresence.online( ClientActivity.listening( "@" + botName ) ) )
           .login()
           .block();
