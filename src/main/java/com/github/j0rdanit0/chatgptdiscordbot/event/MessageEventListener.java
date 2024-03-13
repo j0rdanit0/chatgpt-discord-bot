@@ -45,37 +45,23 @@ public class MessageEventListener extends EventListener<MessageCreateEvent>
 
         if ( !isBot )
         {
-            boolean mentionsTheBot = event
-              .getMessage()
-              .getUserMentionIds()
-              .contains( event.getClient().getSelfId() );
+            taskExecutor.execute( () -> {
+                boolean mentionsTheBot = event
+                  .getMessage()
+                  .getUserMentionIds()
+                  .contains( event.getClient().getSelfId() );
 
-            if ( mentionsTheBot )
-            {
-                taskExecutor.execute( () -> {
-                    MessageChannel messageChannel = event.getMessage().getChannel().block();
+                MessageChannel messageChannel = event.getMessage().getChannel().block();
 
-                    if ( messageChannel instanceof TextChannel textChannel )
-                    {
-                        startConversation( event.getMessage(), textChannel );
-                    }
-                    else if ( messageChannel instanceof ThreadChannel threadChannel )
-                    {
-                        continueConversation( event.getMessage(), threadChannel );
-                    }
-                } );
-            }
-            else
-            {
-                taskExecutor.execute( () -> {
-                    MessageChannel messageChannel = event.getMessage().getChannel().block();
-
-                    if ( messageChannel instanceof ThreadChannel threadChannel )
-                    {
-                        continueConversation( event.getMessage(), threadChannel );
-                    }
-                } );
-            }
+                if ( mentionsTheBot && messageChannel instanceof TextChannel textChannel )
+                {
+                    startConversation( event.getMessage(), textChannel );
+                }
+                else if ( messageChannel instanceof ThreadChannel threadChannel )
+                {
+                    continueConversation( event.getMessage(), threadChannel );
+                }
+            } );
         }
 
         return result;
